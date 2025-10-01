@@ -1,12 +1,69 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Clock, User, RotateCcw, Sun, Moon } from "lucide-react";
 import { motion } from "framer-motion";
+import { useChessStore } from "@/store/chessStore";
 
 export const GameUI = () => {
+  const { currentTurn, moveHistory, capturedPieces, theme, setTheme, resetGame } = useChessStore();
+
+  const whiteCaptured = capturedPieces.filter(p => p.color === "white");
+  const blackCaptured = capturedPieces.filter(p => p.color === "black");
+
   return (
     <div className="space-y-4">
-      {/* Player Info */}
+      {/* Theme Toggle */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <Card className="glass-panel p-4">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Board Theme</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              className="gap-2"
+            >
+              {theme === "light" ? (
+                <>
+                  <Sun className="w-4 h-4" />
+                  Light
+                </>
+              ) : (
+                <>
+                  <Moon className="w-4 h-4" />
+                  Dark
+                </>
+              )}
+            </Button>
+          </div>
+        </Card>
+      </motion.div>
+
+      {/* Current Turn */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <Card className="glass-panel p-6">
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground mb-2">Current Turn</p>
+            <Badge 
+              variant={currentTurn === "white" ? "default" : "secondary"}
+              className="text-lg px-6 py-2"
+            >
+              {currentTurn === "white" ? "⚪ White" : "⚫ Black"}
+            </Badge>
+          </div>
+        </Card>
+      </motion.div>
+
+      {/* Player Info - White */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -19,8 +76,8 @@ export const GameUI = () => {
                 <User className="w-5 h-5" />
               </div>
               <div>
-                <p className="font-semibold">You</p>
-                <Badge variant="secondary" className="text-xs">White</Badge>
+                <p className="font-semibold">White Player</p>
+                <Badge variant="secondary" className="text-xs">⚪</Badge>
               </div>
             </div>
             <div className="flex items-center gap-2 text-accent">
@@ -28,6 +85,18 @@ export const GameUI = () => {
               <span className="font-mono text-lg font-bold">10:00</span>
             </div>
           </div>
+          {whiteCaptured.length > 0 && (
+            <div className="text-sm">
+              <p className="text-muted-foreground mb-2">Captured:</p>
+              <div className="flex flex-wrap gap-1">
+                {whiteCaptured.map((piece, i) => (
+                  <span key={i} className="text-xs bg-destructive/20 px-2 py-1 rounded">
+                    {piece.type}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </Card>
       </motion.div>
 
@@ -42,13 +111,22 @@ export const GameUI = () => {
             <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
             Move History
           </h3>
-          <div className="space-y-2 text-sm text-muted-foreground">
-            <p className="text-center py-8">Game starting...</p>
+          <div className="space-y-2 text-sm max-h-48 overflow-y-auto">
+            {moveHistory.length === 0 ? (
+              <p className="text-center py-4 text-muted-foreground">No moves yet</p>
+            ) : (
+              moveHistory.map((move, index) => (
+                <div key={index} className="flex items-center gap-2 text-muted-foreground">
+                  <span className="font-mono text-xs text-accent">{index + 1}.</span>
+                  <span>{move}</span>
+                </div>
+              ))
+            )}
           </div>
         </Card>
       </motion.div>
 
-      {/* Opponent Info */}
+      {/* Player Info - Black */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -61,8 +139,8 @@ export const GameUI = () => {
                 <User className="w-5 h-5" />
               </div>
               <div>
-                <p className="font-semibold">AI Opponent</p>
-                <Badge variant="secondary" className="text-xs">Black</Badge>
+                <p className="font-semibold">Black Player</p>
+                <Badge variant="secondary" className="text-xs">⚫</Badge>
               </div>
             </div>
             <div className="flex items-center gap-2 text-accent">
@@ -70,27 +148,36 @@ export const GameUI = () => {
               <span className="font-mono text-lg font-bold">10:00</span>
             </div>
           </div>
+          {blackCaptured.length > 0 && (
+            <div className="text-sm">
+              <p className="text-muted-foreground mb-2">Captured:</p>
+              <div className="flex flex-wrap gap-1">
+                {blackCaptured.map((piece, i) => (
+                  <span key={i} className="text-xs bg-destructive/20 px-2 py-1 rounded">
+                    {piece.type}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </Card>
       </motion.div>
 
-      {/* Game Stats */}
+      {/* Game Controls */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
       >
         <Card className="glass-panel p-6">
-          <h3 className="font-semibold mb-4">Game Stats</h3>
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <p className="text-muted-foreground">Moves</p>
-              <p className="text-2xl font-bold">0</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Captures</p>
-              <p className="text-2xl font-bold">0</p>
-            </div>
-          </div>
+          <Button
+            onClick={resetGame}
+            variant="outline"
+            className="w-full game-button"
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Reset Game
+          </Button>
         </Card>
       </motion.div>
     </div>

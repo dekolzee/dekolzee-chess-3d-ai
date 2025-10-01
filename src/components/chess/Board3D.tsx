@@ -1,53 +1,56 @@
-import { useRef } from "react";
-import { Mesh } from "three";
+import { useState } from "react";
 import { ChessPiece } from "./ChessPiece";
+import { useChessStore } from "@/store/chessStore";
 
 interface Board3DProps {
   selectedSquare: [number, number] | null;
   onSquareClick: (square: [number, number] | null) => void;
 }
 
-const initialPieces = [
-  // White pieces (bottom)
-  { type: "rook", color: "white", position: [0, 0] as [number, number] },
-  { type: "knight", color: "white", position: [1, 0] as [number, number] },
-  { type: "bishop", color: "white", position: [2, 0] as [number, number] },
-  { type: "queen", color: "white", position: [3, 0] as [number, number] },
-  { type: "king", color: "white", position: [4, 0] as [number, number] },
-  { type: "bishop", color: "white", position: [5, 0] as [number, number] },
-  { type: "knight", color: "white", position: [6, 0] as [number, number] },
-  { type: "rook", color: "white", position: [7, 0] as [number, number] },
-  ...Array.from({ length: 8 }, (_, i) => ({ 
-    type: "pawn", 
-    color: "white", 
-    position: [i, 1] as [number, number] 
-  })),
-  
-  // Black pieces (top)
-  { type: "rook", color: "black", position: [0, 7] as [number, number] },
-  { type: "knight", color: "black", position: [1, 7] as [number, number] },
-  { type: "bishop", color: "black", position: [2, 7] as [number, number] },
-  { type: "queen", color: "black", position: [3, 7] as [number, number] },
-  { type: "king", color: "black", position: [4, 7] as [number, number] },
-  { type: "bishop", color: "black", position: [5, 7] as [number, number] },
-  { type: "knight", color: "black", position: [6, 7] as [number, number] },
-  { type: "rook", color: "black", position: [7, 7] as [number, number] },
-  ...Array.from({ length: 8 }, (_, i) => ({ 
-    type: "pawn", 
-    color: "black", 
-    position: [i, 6] as [number, number] 
-  })),
-];
-
 export const Board3D = ({ selectedSquare, onSquareClick }: Board3DProps) => {
-  const boardRef = useRef<Mesh>(null);
+  const { pieces, movePiece, isValidMove, theme } = useChessStore();
+
+  const getLightSquareColor = () => {
+    return theme === "light" ? "#f0d9b5" : "#b58863";
+  };
+
+  const getDarkSquareColor = () => {
+    return theme === "light" ? "#b58863" : "#8b4513";
+  };
 
   const getSquareColor = (x: number, z: number) => {
-    return (x + z) % 2 === 0 ? "#2d2d3a" : "#1a1a24";
+    return (x + z) % 2 === 0 ? getLightSquareColor() : getDarkSquareColor();
   };
 
   const isSquareSelected = (x: number, z: number) => {
     return selectedSquare?.[0] === x && selectedSquare?.[1] === z;
+  };
+
+  const isValidMoveSquare = (x: number, z: number) => {
+    if (!selectedSquare) return false;
+    return isValidMove(selectedSquare, [x, z]);
+  };
+
+  const handleSquareClick = (x: number, z: number) => {
+    if (selectedSquare) {
+      // Try to move piece
+      const piece = pieces.find(
+        p => p.position[0] === selectedSquare[0] && p.position[1] === selectedSquare[1]
+      );
+      if (piece && isValidMove(selectedSquare, [x, z])) {
+        movePiece(selectedSquare, [x, z]);
+        onSquareClick(null);
+        return;
+      }
+    }
+    
+    // Select new square if it has a piece
+    const pieceAtSquare = pieces.find(p => p.position[0] === x && p.position[1] === z);
+    if (pieceAtSquare) {
+      onSquareClick([x, z]);
+    } else {
+      onSquareClick(null);
+    }
   };
 
   return (
@@ -56,47 +59,78 @@ export const Board3D = ({ selectedSquare, onSquareClick }: Board3DProps) => {
       {Array.from({ length: 8 }).map((_, x) =>
         Array.from({ length: 8 }).map((_, z) => {
           const selected = isSquareSelected(x, z);
+          const validMove = isValidMoveSquare(x, z);
+          
           return (
-            <mesh
-              key={`${x}-${z}`}
-              position={[x - 3.5, 0, z - 3.5]}
-              rotation={[-Math.PI / 2, 0, 0]}
-              receiveShadow
-              onClick={() => onSquareClick([x, z])}
-            >
-              <planeGeometry args={[0.95, 0.95]} />
-              <meshStandardMaterial
-                color={selected ? "#8b5cf6" : getSquareColor(x, z)}
-                metalness={0.3}
-                roughness={0.7}
-                emissive={selected ? "#8b5cf6" : "#000000"}
-                emissiveIntensity={selected ? 0.3 : 0}
-              />
-            </mesh>
+            <group key={`square-${x}-${z}`}>
+              {/* Square */}
+              <mesh
+                position={[x - 3.5, 0.01, z - 3.5]}
+                rotation={[-Math.PI / 2, 0, 0]}
+                receiveShadow
+                onClick={() => handleSquareClick(x, z)}
+              >
+                <planeGeometry args={[0.98, 0.98]} />
+                <meshStandardMaterial
+                  color={selected ? "#ffd700" : getSquareColor(x, z)}
+                  metalness={0.1}
+                  roughness={0.8}
+                  emissive={selected ? "#ffd700" : validMove ? "#00ff00" : "#000000"}
+                  emissiveIntensity={selected ? 0.3 : validMove ? 0.2 : 0}
+                />
+              </mesh>
+              
+              {/* Valid move indicator */}
+              {validMove && (
+                <mesh position={[x - 3.5, 0.05, z - 3.5]}>
+                  <cylinderGeometry args={[0.15, 0.15, 0.05, 16]} />
+                  <meshStandardMaterial
+                    color="#00ff00"
+                    transparent
+                    opacity={0.6}
+                    emissive="#00ff00"
+                    emissiveIntensity={0.5}
+                  />
+                </mesh>
+              )}
+            </group>
           );
         })
       )}
 
-      {/* Board base */}
-      <mesh position={[0, -0.15, 0]} receiveShadow>
-        <boxGeometry args={[8.5, 0.3, 8.5]} />
+      {/* Board frame */}
+      <mesh position={[0, -0.2, 0]} receiveShadow>
+        <boxGeometry args={[8.5, 0.4, 8.5]} />
         <meshStandardMaterial
-          color="#0f0f18"
-          metalness={0.8}
-          roughness={0.2}
+          color={theme === "light" ? "#8b4513" : "#2c1810"}
+          metalness={0.3}
+          roughness={0.7}
+        />
+      </mesh>
+
+      {/* Board border trim */}
+      <mesh position={[0, 0.01, 0]} receiveShadow>
+        <boxGeometry args={[8.2, 0.02, 8.2]} />
+        <meshStandardMaterial
+          color={theme === "light" ? "#654321" : "#1a0f0a"}
+          metalness={0.5}
+          roughness={0.5}
         />
       </mesh>
 
       {/* Chess pieces */}
-      {initialPieces.map((piece, index) => (
+      {pieces.map((piece, index) => (
         <ChessPiece
-          key={index}
+          key={`${piece.color}-${piece.type}-${index}`}
           type={piece.type}
           color={piece.color}
           position={piece.position}
           selected={isSquareSelected(piece.position[0], piece.position[1])}
+          onClick={() => handleSquareClick(piece.position[0], piece.position[1])}
         />
       ))}
+
+      {/* Coordinate labels would go here in a more advanced version */}
     </group>
   );
 };

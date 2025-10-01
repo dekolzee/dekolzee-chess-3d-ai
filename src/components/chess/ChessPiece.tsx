@@ -1,59 +1,114 @@
 import { useRef } from "react";
-import { Mesh } from "three";
+import { Group } from "three";
 import { useFrame } from "@react-three/fiber";
+import { Cylinder, Sphere, Cone } from "@react-three/drei";
 
 interface ChessPieceProps {
   type: string;
   color: string;
   position: [number, number];
   selected: boolean;
+  onClick: () => void;
 }
 
-export const ChessPiece = ({ type, color, position, selected }: ChessPieceProps) => {
-  const meshRef = useRef<Mesh>(null);
+export const ChessPiece = ({ type, color, position, selected, onClick }: ChessPieceProps) => {
+  const meshRef = useRef<Group>(null);
   
   useFrame((state) => {
     if (meshRef.current && selected) {
-      meshRef.current.position.y = 0.5 + Math.sin(state.clock.elapsedTime * 3) * 0.1;
+      meshRef.current.position.y = 0.6 + Math.sin(state.clock.elapsedTime * 4) * 0.08;
+    } else if (meshRef.current) {
+      meshRef.current.position.y = 0.4;
     }
   });
 
-  const getPieceGeometry = () => {
+  const pieceColor = color === "white" ? "#f5f5f5" : "#2d2d2d";
+  const metalness = color === "white" ? 0.4 : 0.6;
+  const roughness = color === "white" ? 0.6 : 0.4;
+
+  const renderPieceGeometry = () => {
     switch (type) {
       case "pawn":
-        return <sphereGeometry args={[0.25, 16, 16]} />;
+        return (
+          <group>
+            <Sphere args={[0.2, 16, 16]} position={[0, 0.35, 0]} />
+            <Cylinder args={[0.18, 0.25, 0.3, 16]} position={[0, 0.15, 0]} />
+            <Cylinder args={[0.28, 0.28, 0.1, 16]} position={[0, 0.05, 0]} />
+          </group>
+        );
+      
       case "rook":
-        return <cylinderGeometry args={[0.3, 0.3, 0.6, 8]} />;
+        return (
+          <group>
+            <Cylinder args={[0.25, 0.25, 0.15, 4]} position={[0, 0.5, 0]} />
+            <Cylinder args={[0.22, 0.25, 0.4, 16]} position={[0, 0.25, 0]} />
+            <Cylinder args={[0.3, 0.3, 0.1, 16]} position={[0, 0.05, 0]} />
+          </group>
+        );
+      
       case "knight":
-        return <coneGeometry args={[0.3, 0.7, 4]} />;
+        return (
+          <group>
+            <Cone args={[0.25, 0.5, 4]} position={[0, 0.35, 0]} rotation={[0, Math.PI / 4, 0]} />
+            <Cylinder args={[0.28, 0.28, 0.1, 16]} position={[0, 0.05, 0]} />
+          </group>
+        );
+      
       case "bishop":
-        return <coneGeometry args={[0.25, 0.8, 8]} />;
+        return (
+          <group>
+            <Sphere args={[0.15, 16, 16]} position={[0, 0.55, 0]} />
+            <Cone args={[0.2, 0.4, 16]} position={[0, 0.3, 0]} />
+            <Cylinder args={[0.25, 0.28, 0.15, 16]} position={[0, 0.1, 0]} />
+            <Cylinder args={[0.3, 0.3, 0.08, 16]} position={[0, 0.04, 0]} />
+          </group>
+        );
+      
       case "queen":
-        return <cylinderGeometry args={[0.35, 0.25, 0.8, 8]} />;
+        return (
+          <group>
+            <Sphere args={[0.18, 16, 16]} position={[0, 0.65, 0]} />
+            <Cone args={[0.22, 0.3, 8]} position={[0, 0.45, 0]} />
+            <Cylinder args={[0.25, 0.25, 0.25, 16]} position={[0, 0.25, 0]} />
+            <Cylinder args={[0.32, 0.32, 0.1, 16]} position={[0, 0.05, 0]} />
+          </group>
+        );
+      
       case "king":
-        return <cylinderGeometry args={[0.3, 0.3, 0.9, 8]} />;
+        return (
+          <group>
+            <Cylinder args={[0.05, 0.05, 0.25, 8]} position={[0, 0.75, 0]} />
+            <Cylinder args={[0.15, 0.15, 0.05, 8]} position={[0, 0.62, 0]} />
+            <Sphere args={[0.2, 16, 16]} position={[0, 0.55, 0]} />
+            <Cylinder args={[0.25, 0.25, 0.3, 16]} position={[0, 0.3, 0]} />
+            <Cylinder args={[0.32, 0.32, 0.1, 16]} position={[0, 0.05, 0]} />
+          </group>
+        );
+      
       default:
-        return <boxGeometry args={[0.4, 0.6, 0.4]} />;
+        return <Cylinder args={[0.25, 0.25, 0.5, 16]} />;
     }
   };
 
-  const pieceColor = color === "white" ? "#e8e8f0" : "#1a1a24";
-  const emissiveColor = color === "white" ? "#8b5cf6" : "#06b6d4";
-
   return (
-    <mesh
+    <group
       ref={meshRef}
       position={[position[0] - 3.5, selected ? 0.6 : 0.4, position[1] - 3.5]}
-      castShadow
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
     >
-      {getPieceGeometry()}
-      <meshStandardMaterial
-        color={pieceColor}
-        metalness={0.6}
-        roughness={0.4}
-        emissive={selected ? emissiveColor : pieceColor}
-        emissiveIntensity={selected ? 0.5 : 0}
-      />
-    </mesh>
+      <mesh castShadow receiveShadow>
+        {renderPieceGeometry()}
+        <meshStandardMaterial
+          color={pieceColor}
+          metalness={metalness}
+          roughness={roughness}
+          emissive={selected ? (color === "white" ? "#ffffff" : "#444444") : pieceColor}
+          emissiveIntensity={selected ? 0.3 : 0}
+        />
+      </mesh>
+    </group>
   );
 };
