@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { useChessStore } from "@/store/chessStore";
 
 export const GameUI = () => {
-  const { currentTurn, moveHistory, capturedPieces, theme, setTheme, resetGame } = useChessStore();
+  const { currentTurn, moveHistory, capturedPieces, theme, setTheme, resetGame, gameStatus, winner } = useChessStore();
 
   const whiteCaptured = capturedPieces.filter(p => p.color === "white");
   const blackCaptured = capturedPieces.filter(p => p.color === "black");
@@ -44,21 +44,42 @@ export const GameUI = () => {
         </Card>
       </motion.div>
 
-      {/* Current Turn */}
+      {/* Game Status */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
         <Card className="glass-panel p-6">
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground mb-2">Current Turn</p>
-            <Badge 
-              variant={currentTurn === "white" ? "default" : "secondary"}
-              className="text-lg px-6 py-2"
-            >
-              {currentTurn === "white" ? "⚪ White" : "⚫ Black"}
-            </Badge>
+          <div className="text-center space-y-3">
+            {gameStatus === "checkmate" && (
+              <div className="bg-gradient-to-r from-accent to-primary p-4 rounded-lg">
+                <p className="text-2xl font-bold mb-1">Checkmate!</p>
+                <p className="text-lg">{winner === "white" ? "⚪ White" : "⚫ Black"} wins!</p>
+              </div>
+            )}
+            {gameStatus === "stalemate" && (
+              <div className="bg-muted p-4 rounded-lg">
+                <p className="text-2xl font-bold mb-1">Stalemate!</p>
+                <p className="text-lg">Game is a draw</p>
+              </div>
+            )}
+            {gameStatus === "check" && (
+              <div className="bg-destructive/20 p-3 rounded-lg border-2 border-destructive animate-pulse">
+                <p className="text-lg font-bold text-destructive">Check!</p>
+              </div>
+            )}
+            {gameStatus === "active" && (
+              <>
+                <p className="text-sm text-muted-foreground mb-2">Current Turn</p>
+                <Badge 
+                  variant={currentTurn === "white" ? "default" : "secondary"}
+                  className="text-lg px-6 py-2"
+                >
+                  {currentTurn === "white" ? "⚪ White" : "⚫ Black"}
+                </Badge>
+              </>
+            )}
           </div>
         </Card>
       </motion.div>

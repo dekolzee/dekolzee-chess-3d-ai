@@ -12,11 +12,14 @@ interface ChessStore {
   currentTurn: "white" | "black";
   moveHistory: string[];
   capturedPieces: ChessPiece[];
+  gameStatus: "active" | "check" | "checkmate" | "stalemate";
+  winner: "white" | "black" | null;
   
   setTheme: (theme: "light" | "dark") => void;
   movePiece: (from: [number, number], to: [number, number]) => void;
   isValidMove: (from: [number, number], to: [number, number]) => boolean;
   resetGame: () => void;
+  isKingInCheck: (color: "white" | "black", pieces?: ChessPiece[]) => boolean;
 }
 
 const initialPieces: ChessPiece[] = [
@@ -57,11 +60,33 @@ export const useChessStore = create<ChessStore>((set, get) => ({
   currentTurn: "white",
   moveHistory: [],
   capturedPieces: [],
+  gameStatus: "active",
+  winner: null,
 
   setTheme: (theme) => set({ theme }),
 
+  isKingInCheck: (color, pieces) => {
+    const state = get();
+    const piecesToCheck = pieces || state.pieces;
+    
+    // Find the king
+    const king = piecesToCheck.find(p => p.type === "king" && p.color === color);
+    if (!king) return false;
+    
+    // Check if any opponent piece can attack the king
+    const opponentColor = color === "white" ? "black" : "white";
+    return piecesToCheck.some(p => {
+      if (p.color !== opponentColor) return false;
+      return canPieceAttack(p, king.position, piecesToCheck);
+    });
+  },
+
   isValidMove: (from, to) => {
     const state = get();
+    
+    // Game must be active
+    if (state.gameStatus === "checkmate" || state.gameStatus === "stalemate") return false;
+    
     const piece = state.pieces.find(
       p => p.position[0] === from[0] && p.position[1] === from[1]
     );
@@ -76,102 +101,91 @@ export const useChessStore = create<ChessStore>((set, get) => ({
     // Can't capture your own piece
     if (targetPiece && targetPiece.color === piece.color) return false;
     
-    const dx = to[0] - from[0];
-    const dz = to[1] - from[1];
+    // Check basic move legality
+    if (!isMoveLegal(piece, from, to, state.pieces)) return false;
     
-    switch (piece.type) {
-      case "pawn": {
-        const direction = piece.color === "white" ? 1 : -1;
-        const startRow = piece.color === "white" ? 1 : 6;
-        
-        // Move forward
-        if (dx === 0 && dz === direction && !targetPiece) return true;
-        
-        // First move can be 2 squares
-        if (dx === 0 && dz === direction * 2 && from[1] === startRow && !targetPiece) {
-          const middleSquare = state.pieces.find(
-            p => p.position[0] === from[0] && p.position[1] === from[1] + direction
-          );
-          if (!middleSquare) return true;
-        }
-        
-        // Capture diagonally
-        if (Math.abs(dx) === 1 && dz === direction && targetPiece) return true;
-        
-        return false;
-      }
-      
-      case "rook":
-        if (dx === 0 || dz === 0) {
-          return !isPathBlocked(from, to, state.pieces);
-        }
-        return false;
-      
-      case "knight":
-        return (Math.abs(dx) === 2 && Math.abs(dz) === 1) || 
-               (Math.abs(dx) === 1 && Math.abs(dz) === 2);
-      
-      case "bishop":
-        if (Math.abs(dx) === Math.abs(dz)) {
-          return !isPathBlocked(from, to, state.pieces);
-        }
-        return false;
-      
-      case "queen":
-        if (dx === 0 || dz === 0 || Math.abs(dx) === Math.abs(dz)) {
-          return !isPathBlocked(from, to, state.pieces);
-        }
-        return false;
-      
-      case "king":
-        return Math.abs(dx) <= 1 && Math.abs(dz) <= 1;
-      
-      default:
-        return false;
-    }
+    // Simulate the move to check if it would leave/put king in check
+    const simulatedPieces = simulateMove(from, to, state.pieces);
+    if (state.isKingInCheck(piece.color, simulatedPieces)) return false;
+    
+    return true;
   },
+    
 
   movePiece: (from, to) => {
     const state = get();
     
     if (!state.isValidMove(from, to)) return;
     
-    const pieceIndex = state.pieces.findIndex(
-      p => p.position[0] === from[0] && p.position[1] === from[1]
-    );
-    
-    if (pieceIndex === -1) return;
-    
-    const targetPieceIndex = state.pieces.findIndex(
+    const newPieces = simulateMove(from, to, state.pieces);
+    const capturedPiece = state.pieces.find(
       p => p.position[0] === to[0] && p.position[1] === to[1]
     );
     
-    const newPieces = [...state.pieces];
-    const capturedPieces = [...state.capturedPieces];
-    
-    // Capture piece if exists
-    if (targetPieceIndex !== -1) {
-      capturedPieces.push(newPieces[targetPieceIndex]);
-      newPieces.splice(targetPieceIndex, 1);
-    }
-    
-    // Move piece
-    const movedPieceIndex = newPieces.findIndex(
-      p => p.position[0] === from[0] && p.position[1] === from[1]
-    );
-    newPieces[movedPieceIndex] = {
-      ...newPieces[movedPieceIndex],
-      position: to,
-    };
+    const capturedPieces = capturedPiece 
+      ? [...state.capturedPieces, capturedPiece]
+      : state.capturedPieces;
     
     // Switch turn
     const nextTurn = state.currentTurn === "white" ? "black" : "white";
+    
+    // Check game status
+    let gameStatus: "active" | "check" | "checkmate" | "stalemate" = "active";
+    let winner: "white" | "black" | null = null;
+    
+    const isCheck = get().isKingInCheck(nextTurn, newPieces);
+    if (isCheck) {
+      // Check if it's checkmate
+      const hasValidMove = newPieces.some(p => {
+        if (p.color !== nextTurn) return false;
+        for (let x = 0; x < 8; x++) {
+          for (let y = 0; y < 8; y++) {
+            if (isMoveLegal(p, p.position, [x, y], newPieces)) {
+              const simPieces = simulateMove(p.position, [x, y], newPieces);
+              if (!get().isKingInCheck(nextTurn, simPieces)) {
+                return true;
+              }
+            }
+          }
+        }
+        return false;
+      });
+      
+      if (!hasValidMove) {
+        gameStatus = "checkmate";
+        winner = state.currentTurn;
+      } else {
+        gameStatus = "check";
+      }
+    } else {
+      // Check for stalemate
+      const hasValidMove = newPieces.some(p => {
+        if (p.color !== nextTurn) return false;
+        for (let x = 0; x < 8; x++) {
+          for (let y = 0; y < 8; y++) {
+            if (isMoveLegal(p, p.position, [x, y], newPieces)) {
+              const simPieces = simulateMove(p.position, [x, y], newPieces);
+              if (!get().isKingInCheck(nextTurn, simPieces)) {
+                return true;
+              }
+            }
+          }
+        }
+        return false;
+      });
+      
+      if (!hasValidMove) {
+        gameStatus = "stalemate";
+      }
+    }
     
     set({
       pieces: newPieces,
       capturedPieces,
       currentTurn: nextTurn,
       moveHistory: [...state.moveHistory, `${from[0]},${from[1]} → ${to[0]},${to[1]}`],
+      gameStatus,
+      winner,
     });
   },
 
@@ -180,6 +194,8 @@ export const useChessStore = create<ChessStore>((set, get) => ({
     currentTurn: "white",
     moveHistory: [],
     capturedPieces: [],
+    gameStatus: "active",
+    winner: null,
   }),
 }));
 
@@ -204,4 +220,99 @@ function isPathBlocked(
   }
   
   return false;
+}
+
+// Helper function to check if a move is legal (without considering check)
+function isMoveLegal(
+  piece: ChessPiece,
+  from: [number, number],
+  to: [number, number],
+  pieces: ChessPiece[]
+): boolean {
+  const dx = to[0] - from[0];
+  const dz = to[1] - from[1];
+  
+  // Can't move to same square
+  if (dx === 0 && dz === 0) return false;
+  
+  const targetPiece = pieces.find(
+    p => p.position[0] === to[0] && p.position[1] === to[1]
+  );
+  
+  switch (piece.type) {
+    case "pawn": {
+      const direction = piece.color === "white" ? 1 : -1;
+      const startRow = piece.color === "white" ? 1 : 6;
+      
+      // Move forward
+      if (dx === 0 && dz === direction && !targetPiece) return true;
+      
+      // First move can be 2 squares
+      if (dx === 0 && dz === direction * 2 && from[1] === startRow && !targetPiece) {
+        const middleSquare = pieces.find(
+          p => p.position[0] === from[0] && p.position[1] === from[1] + direction
+        );
+        if (!middleSquare) return true;
+      }
+      
+      // Capture diagonally
+      if (Math.abs(dx) === 1 && dz === direction && targetPiece && targetPiece.color !== piece.color) return true;
+      
+      return false;
+    }
+    
+    case "rook":
+      if (dx === 0 || dz === 0) {
+        return !isPathBlocked(from, to, pieces);
+      }
+      return false;
+    
+    case "knight":
+      return (Math.abs(dx) === 2 && Math.abs(dz) === 1) || 
+             (Math.abs(dx) === 1 && Math.abs(dz) === 2);
+    
+    case "bishop":
+      if (Math.abs(dx) === Math.abs(dz)) {
+        return !isPathBlocked(from, to, pieces);
+      }
+      return false;
+    
+    case "queen":
+      if (dx === 0 || dz === 0 || Math.abs(dx) === Math.abs(dz)) {
+        return !isPathBlocked(from, to, pieces);
+      }
+      return false;
+    
+    case "king":
+      return Math.abs(dx) <= 1 && Math.abs(dz) <= 1;
+    
+    default:
+      return false;
+  }
+}
+
+// Helper function to check if a piece can attack a position
+function canPieceAttack(
+  piece: ChessPiece,
+  target: [number, number],
+  pieces: ChessPiece[]
+): boolean {
+  return isMoveLegal(piece, piece.position, target, pieces);
+}
+
+// Helper function to simulate a move
+function simulateMove(
+  from: [number, number],
+  to: [number, number],
+  pieces: ChessPiece[]
+): ChessPiece[] {
+  const newPieces = pieces.filter(
+    p => !(p.position[0] === to[0] && p.position[1] === to[1])
+  );
+  
+  return newPieces.map(p => 
+    p.position[0] === from[0] && p.position[1] === from[1]
+      ? { ...p, position: to }
+      : p
+  );
 }

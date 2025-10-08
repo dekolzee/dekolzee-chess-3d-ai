@@ -41,6 +41,11 @@ const Game = () => {
   }
 
   const handleSquareClick = (x: number, y: number) => {
+    const { gameStatus, isKingInCheck } = useChessStore.getState();
+    
+    // Prevent moves if game is over
+    if (gameStatus === "checkmate" || gameStatus === "stalemate") return;
+    
     if (selectedSquare) {
       const piece = pieces.find(
         p => p.position[0] === selectedSquare[0] && p.position[1] === selectedSquare[1]
@@ -51,7 +56,11 @@ const Game = () => {
         
         movePiece(selectedSquare, [x, y]);
         
-        if (capturedPiece) {
+        // Play appropriate sound
+        const newGameStatus = useChessStore.getState().gameStatus;
+        if (newGameStatus === "check" || newGameStatus === "checkmate") {
+          soundManager.playCheck();
+        } else if (capturedPiece) {
           soundManager.playCapture();
         } else {
           soundManager.playMove();
