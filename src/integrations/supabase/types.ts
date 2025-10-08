@@ -14,7 +14,102 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      games: {
+        Row: {
+          black_player_id: string | null
+          black_time_remaining: number | null
+          created_at: string | null
+          game_state: Json
+          id: string
+          status: string | null
+          time_control: number | null
+          updated_at: string | null
+          white_player_id: string | null
+          white_time_remaining: number | null
+          winner: string | null
+        }
+        Insert: {
+          black_player_id?: string | null
+          black_time_remaining?: number | null
+          created_at?: string | null
+          game_state?: Json
+          id?: string
+          status?: string | null
+          time_control?: number | null
+          updated_at?: string | null
+          white_player_id?: string | null
+          white_time_remaining?: number | null
+          winner?: string | null
+        }
+        Update: {
+          black_player_id?: string | null
+          black_time_remaining?: number | null
+          created_at?: string | null
+          game_state?: Json
+          id?: string
+          status?: string | null
+          time_control?: number | null
+          updated_at?: string | null
+          white_player_id?: string | null
+          white_time_remaining?: number | null
+          winner?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "games_black_player_id_fkey"
+            columns: ["black_player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "games_white_player_id_fkey"
+            columns: ["white_player_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string | null
+          elo_rating: number | null
+          games_drawn: number | null
+          games_lost: number | null
+          games_played: number | null
+          games_won: number | null
+          id: string
+          updated_at: string | null
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string | null
+          elo_rating?: number | null
+          games_drawn?: number | null
+          games_lost?: number | null
+          games_played?: number | null
+          games_won?: number | null
+          id: string
+          updated_at?: string | null
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string | null
+          elo_rating?: number | null
+          games_drawn?: number | null
+          games_lost?: number | null
+          games_played?: number | null
+          games_won?: number | null
+          id?: string
+          updated_at?: string | null
+          username?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
