@@ -9,6 +9,7 @@ import { ArrowLeft, Copy, Users, Bot, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { useChessStore } from "@/store/chessStore";
 
 const Lobby = () => {
   const navigate = useNavigate();
@@ -34,14 +35,24 @@ const Lobby = () => {
     setLoading(true);
     try {
       const code = generateGameCode();
+      const initialState = useChessStore.getState();
+      
       const { data, error } = await supabase
         .from("games")
-        .insert({
+        .insert([{
           white_player_id: user.id,
           game_code: code,
           status: "waiting",
-          mode: "multiplayer"
-        })
+          mode: "multiplayer",
+          game_state: JSON.parse(JSON.stringify({
+            pieces: initialState.pieces,
+            currentTurn: "white",
+            moveHistory: [],
+            capturedPieces: [],
+            gameStatus: "active",
+            winner: null,
+          }))
+        }])
         .select()
         .single();
 
@@ -118,13 +129,23 @@ const Lobby = () => {
     
     setLoading(true);
     try {
+      const initialState = useChessStore.getState();
+      
       const { data, error } = await supabase
         .from("games")
-        .insert({
+        .insert([{
           white_player_id: user.id,
           status: "active",
-          mode: "ai"
-        })
+          mode: "ai",
+          game_state: JSON.parse(JSON.stringify({
+            pieces: initialState.pieces,
+            currentTurn: "white",
+            moveHistory: [],
+            capturedPieces: [],
+            gameStatus: "active",
+            winner: null,
+          }))
+        }])
         .select()
         .single();
 

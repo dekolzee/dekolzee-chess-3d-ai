@@ -61,15 +61,25 @@ const Game = () => {
         setMyColor("black");
       }
 
-      // Load game state if exists
-      if (game.game_state) {
+      // Load game state if exists, otherwise reset to initial position
+      if (game.game_state && typeof game.game_state === 'object') {
         const state = game.game_state as any;
-        useChessStore.setState({
-          pieces: state.pieces || pieces,
-          currentTurn: state.currentTurn || "white",
-          moveHistory: state.moveHistory || [],
-          capturedPieces: Array.isArray(state.capturedPieces) ? state.capturedPieces : [],
-        });
+        if (state.pieces && Array.isArray(state.pieces) && state.pieces.length > 0) {
+          useChessStore.setState({
+            pieces: state.pieces,
+            currentTurn: state.currentTurn || "white",
+            moveHistory: state.moveHistory || [],
+            capturedPieces: Array.isArray(state.capturedPieces) ? state.capturedPieces : [],
+            gameStatus: state.gameStatus || "active",
+            winner: state.winner || null,
+          });
+        } else {
+          // Initialize new game with starting position
+          useChessStore.getState().resetGame();
+        }
+      } else {
+        // Initialize new game with starting position
+        useChessStore.getState().resetGame();
       }
     };
 
@@ -92,10 +102,10 @@ const Game = () => {
         },
         (payload) => {
           const newGame = payload.new as any;
-          if (newGame.game_state) {
+          if (newGame.game_state && newGame.game_state.pieces) {
             const state = newGame.game_state;
             useChessStore.setState({
-              pieces: state.pieces || [],
+              pieces: state.pieces,
               currentTurn: state.currentTurn || "white",
               moveHistory: state.moveHistory || [],
               capturedPieces: Array.isArray(state.capturedPieces) ? state.capturedPieces : [],
