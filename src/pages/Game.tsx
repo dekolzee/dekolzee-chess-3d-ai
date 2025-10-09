@@ -1,25 +1,199 @@
 import { Board2D } from "@/components/chess/Board2D";
 import { GameUI } from "@/components/chess/GameUI";
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Volume2, VolumeX, Music } from "lucide-react";
 import { motion } from "framer-motion";
 import { useChessStore } from "@/store/chessStore";
 import { useAuth } from "@/hooks/useAuth";
 import { soundManager } from "@/utils/sounds";
+import { pieceSoundManager } from "@/utils/piecesSounds";
+import { musicManager } from "@/utils/backgroundMusic";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 const Game = () => {
   const navigate = useNavigate();
+  const { gameId } = useParams();
   const { user, loading: authLoading } = useAuth();
+  const { toast } = useToast();
   const [selectedSquare, setSelectedSquare] = useState<[number, number] | null>(null);
-  const { pieces, isValidMove, movePiece, theme } = useChessStore();
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [musicEnabled, setMusicEnabled] = useState(false);
+  const [gameMode, setGameMode] = useState<"multiplayer" | "ai">("multiplayer");
+  const [myColor, setMyColor] = useState<"white" | "black" | null>(null);
+  const [isWaitingForAI, setIsWaitingForAI] = useState(false);
+  const { pieces, isValidMove, movePiece, theme, currentTurn, gameStatus, resetGame } = useChessStore();
 
+  // Load game from database
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/auth");
+      return;
     }
-  }, [user, authLoading, navigate]);
+
+    if (!gameId || !user) return;
+
+    const loadGame = async () => {
+      const { data: game, error } = await supabase
+        .from("games")
+        .select("*")
+        .eq("id", gameId)
+        .single();
+
+      if (error || !game) {
+        toast({
+          title: "Error",
+          description: "Game not found",
+          variant: "destructive",
+        });
+        navigate("/lobby");
+        return;
+      }
+
+      setGameMode((game.mode as "multiplayer" | "ai") || "multiplayer");
+      
+      // Determine player color
+      if (game.white_player_id === user.id) {
+        setMyColor("white");
+      } else if (game.black_player_id === user.id) {
+        setMyColor("black");
+      }
+
+      // Load game state if exists
+      if (game.game_state) {
+        const state = game.game_state as any;
+        useChessStore.setState({
+          pieces: state.pieces || pieces,
+          currentTurn: state.currentTurn || "white",
+          moveHistory: state.moveHistory || [],
+          capturedPieces: state.capturedPieces || [],
+        });
+      }
+    };
+
+    loadGame();
+  }, [gameId, user, authLoading, navigate]);
+
+  // Subscribe to realtime updates
+  useEffect(() => {
+    if (!gameId) return;
+
+    const channel = supabase
+      .channel(`game-${gameId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'games',
+          filter: `id=eq.${gameId}`,
+        },
+        (payload) => {
+          const newGame = payload.new as any;
+          if (newGame.game_state) {
+            const state = newGame.game_state;
+            useChessStore.setState({
+              pieces: state.pieces || [],
+              currentTurn: state.currentTurn || "white",
+              moveHistory: state.moveHistory || [],
+              capturedPieces: state.capturedPieces || [],
+              gameStatus: state.gameStatus || "active",
+              winner: state.winner || null,
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [gameId]);
+
+  // Save game state to database after each move
+  const saveGameState = useCallback(async () => {
+    if (!gameId) return;
+
+    const state = useChessStore.getState();
+    await supabase
+      .from("games")
+      .update({
+        game_state: JSON.parse(JSON.stringify({
+          pieces: state.pieces,
+          currentTurn: state.currentTurn,
+          moveHistory: state.moveHistory,
+          capturedPieces: state.capturedPieces,
+          gameStatus: state.gameStatus,
+          winner: state.winner,
+        })),
+        status: state.gameStatus === "checkmate" || state.gameStatus === "stalemate" ? "finished" : "active",
+        winner: state.winner,
+      })
+      .eq("id", gameId);
+  }, [gameId]);
+
+  // AI move logic
+  const makeAIMove = useCallback(async () => {
+    if (gameMode !== "ai" || currentTurn !== "black" || isWaitingForAI) return;
+
+    setIsWaitingForAI(true);
+    try {
+      const state = useChessStore.getState();
+      const { data, error } = await supabase.functions.invoke('chess-ai-move', {
+        body: { 
+          gameState: {
+            pieces: state.pieces,
+            currentTurn: state.currentTurn,
+            moveHistory: state.moveHistory,
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.useRandom) {
+        // Fallback: make random valid move
+        const blackPieces = state.pieces.filter(p => p.color === "black");
+        for (const piece of blackPieces) {
+          for (let x = 0; x < 8; x++) {
+            for (let y = 0; y < 8; y++) {
+              if (isValidMove(piece.position, [x, y])) {
+                setTimeout(() => {
+                  movePiece(piece.position, [x, y]);
+                  saveGameState();
+                }, 500);
+                setIsWaitingForAI(false);
+                return;
+              }
+            }
+          }
+        }
+      } else if (data.from && data.to) {
+        setTimeout(() => {
+          movePiece(data.from, data.to);
+          saveGameState();
+        }, 500);
+      }
+    } catch (error: any) {
+      console.error("AI move error:", error);
+      toast({
+        title: "AI Error",
+        description: "AI couldn't make a move",
+        variant: "destructive",
+      });
+    } finally {
+      setIsWaitingForAI(false);
+    }
+  }, [gameMode, currentTurn, isWaitingForAI, movePiece, saveGameState, isValidMove]);
+
+  // Trigger AI move when it's AI's turn
+  useEffect(() => {
+    if (gameMode === "ai" && currentTurn === "black" && gameStatus === "active") {
+      makeAIMove();
+    }
+  }, [currentTurn, gameMode, gameStatus, makeAIMove]);
 
   if (authLoading) {
     return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
@@ -40,11 +214,21 @@ const Game = () => {
     }
   }
 
-  const handleSquareClick = (x: number, y: number) => {
-    const { gameStatus, isKingInCheck } = useChessStore.getState();
-    
+  const handleSquareClick = async (x: number, y: number) => {
     // Prevent moves if game is over
     if (gameStatus === "checkmate" || gameStatus === "stalemate") return;
+
+    // In multiplayer, only allow moves if it's your turn
+    if (gameMode === "multiplayer" && myColor && myColor !== currentTurn) {
+      toast({
+        title: "Not Your Turn",
+        description: "Wait for your opponent",
+      });
+      return;
+    }
+
+    // In AI mode, only allow white player moves
+    if (gameMode === "ai" && currentTurn !== "white") return;
     
     if (selectedSquare) {
       const piece = pieces.find(
@@ -56,15 +240,19 @@ const Game = () => {
         
         movePiece(selectedSquare, [x, y]);
         
-        // Play appropriate sound
+        // Play piece-specific sound
+        pieceSoundManager.playPieceMove(piece);
+        
+        // Play game event sounds
         const newGameStatus = useChessStore.getState().gameStatus;
         if (newGameStatus === "check" || newGameStatus === "checkmate") {
           soundManager.playCheck();
         } else if (capturedPiece) {
           soundManager.playCapture();
-        } else {
-          soundManager.playMove();
         }
+        
+        // Save to database
+        await saveGameState();
         
         setSelectedSquare(null);
         return;
@@ -73,10 +261,29 @@ const Game = () => {
 
     const pieceAtSquare = pieces.find(p => p.position[0] === x && p.position[1] === y);
     if (pieceAtSquare) {
+      // In multiplayer, only select own pieces
+      if (gameMode === "multiplayer" && myColor && pieceAtSquare.color !== myColor) {
+        return;
+      }
+      // In AI mode, only select white pieces
+      if (gameMode === "ai" && pieceAtSquare.color !== "white") {
+        return;
+      }
       setSelectedSquare([x, y]);
     } else {
       setSelectedSquare(null);
     }
+  };
+
+  const toggleSound = () => {
+    const enabled = soundManager.toggle();
+    pieceSoundManager.toggle();
+    setSoundEnabled(enabled);
+  };
+
+  const toggleMusic = () => {
+    const enabled = musicManager.toggle();
+    setMusicEnabled(enabled);
   };
 
   return (
@@ -91,16 +298,35 @@ const Game = () => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
+          className="mb-6 flex items-center justify-between"
         >
           <Button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/lobby")}
             variant="ghost"
             className="group hover:bg-card/40"
           >
             <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
-            Back to Menu
+            Back to Lobby
           </Button>
+
+          <div className="flex gap-2">
+            <Button
+              onClick={toggleSound}
+              variant="outline"
+              size="icon"
+              className="hover:bg-card/40"
+            >
+              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
+            </Button>
+            <Button
+              onClick={toggleMusic}
+              variant="outline"
+              size="icon"
+              className="hover:bg-card/40"
+            >
+              <Music className={`h-4 w-4 ${musicEnabled ? 'text-accent' : ''}`} />
+            </Button>
+          </div>
         </motion.div>
 
         <div className="grid lg:grid-cols-[1fr_400px] gap-6">

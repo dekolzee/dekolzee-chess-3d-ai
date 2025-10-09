@@ -52,7 +52,7 @@ export const Hero = () => {
             <Button
               size="lg"
               className="hero-button text-lg px-12 py-6 group"
-              onClick={() => navigate("/auth")}
+              onClick={() => navigate("/lobby")}
             >
               <Play className="mr-2 h-5 w-5 transition-transform group-hover:scale-110" />
               Play Now

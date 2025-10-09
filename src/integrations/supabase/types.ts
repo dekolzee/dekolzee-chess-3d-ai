@@ -19,8 +19,10 @@ export type Database = {
           black_player_id: string | null
           black_time_remaining: number | null
           created_at: string | null
+          game_code: string | null
           game_state: Json
           id: string
+          mode: string | null
           status: string | null
           time_control: number | null
           updated_at: string | null
@@ -32,8 +34,10 @@ export type Database = {
           black_player_id?: string | null
           black_time_remaining?: number | null
           created_at?: string | null
+          game_code?: string | null
           game_state?: Json
           id?: string
+          mode?: string | null
           status?: string | null
           time_control?: number | null
           updated_at?: string | null
@@ -45,8 +49,10 @@ export type Database = {
           black_player_id?: string | null
           black_time_remaining?: number | null
           created_at?: string | null
+          game_code?: string | null
           game_state?: Json
           id?: string
+          mode?: string | null
           status?: string | null
           time_control?: number | null
           updated_at?: string | null

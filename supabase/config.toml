@@ -1,1 +1,4 @@
 project_id = "thiqywtyibjrqwkoxair"
+
+[functions.chess-ai-move]
+verify_jwt = false
