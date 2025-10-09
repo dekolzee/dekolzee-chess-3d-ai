@@ -8,8 +8,10 @@ import { useChessStore } from "@/store/chessStore";
 export const GameUI = () => {
   const { currentTurn, moveHistory, capturedPieces, theme, setTheme, resetGame, gameStatus, winner } = useChessStore();
 
-  const whiteCaptured = capturedPieces.filter(p => p.color === "white");
-  const blackCaptured = capturedPieces.filter(p => p.color === "black");
+  // Ensure capturedPieces is always an array
+  const capturedPiecesArray = Array.isArray(capturedPieces) ? capturedPieces : [];
+  const whiteCaptured = capturedPiecesArray.filter(p => p.color === "white");
+  const blackCaptured = capturedPiecesArray.filter(p => p.color === "black");
 
   return (
     <div className="space-y-4">

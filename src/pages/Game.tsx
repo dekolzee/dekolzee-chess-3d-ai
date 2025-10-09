@@ -68,7 +68,7 @@ const Game = () => {
           pieces: state.pieces || pieces,
           currentTurn: state.currentTurn || "white",
           moveHistory: state.moveHistory || [],
-          capturedPieces: state.capturedPieces || [],
+          capturedPieces: Array.isArray(state.capturedPieces) ? state.capturedPieces : [],
         });
       }
     };
@@ -98,7 +98,7 @@ const Game = () => {
               pieces: state.pieces || [],
               currentTurn: state.currentTurn || "white",
               moveHistory: state.moveHistory || [],
-              capturedPieces: state.capturedPieces || [],
+              capturedPieces: Array.isArray(state.capturedPieces) ? state.capturedPieces : [],
               gameStatus: state.gameStatus || "active",
               winner: state.winner || null,
             });
