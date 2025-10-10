@@ -1,12 +1,14 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, User, RotateCcw, Sun, Moon } from "lucide-react";
+import { Clock, User, RotateCcw, Sun, Moon, Undo2, Redo2, Settings as SettingsIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { useChessStore } from "@/store/chessStore";
+import { Settings } from "@/components/game/Settings";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 
 export const GameUI = () => {
-  const { currentTurn, moveHistory, capturedPieces, theme, setTheme, resetGame, gameStatus, winner } = useChessStore();
+  const { currentTurn, moveHistory, capturedPieces, theme, setTheme, resetGame, gameStatus, winner, undo, redo, canUndo, canRedo } = useChessStore();
 
   // Ensure capturedPieces is always an array
   const capturedPiecesArray = Array.isArray(capturedPieces) ? capturedPieces : [];
@@ -192,15 +194,53 @@ export const GameUI = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
       >
-        <Card className="glass-panel p-6">
-          <Button
-            onClick={resetGame}
-            variant="outline"
-            className="w-full game-button"
-          >
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Reset Game
-          </Button>
+        <Card className="glass-panel p-4">
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                onClick={undo}
+                variant="outline"
+                disabled={!canUndo()}
+                className="game-button"
+                size="sm"
+              >
+                <Undo2 className="w-4 h-4 mr-1" />
+                Undo
+              </Button>
+              <Button
+                onClick={redo}
+                variant="outline"
+                disabled={!canRedo()}
+                className="game-button"
+                size="sm"
+              >
+                <Redo2 className="w-4 h-4 mr-1" />
+                Redo
+              </Button>
+            </div>
+            
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="w-full game-button" size="sm">
+                  <SettingsIcon className="w-4 h-4 mr-2" />
+                  Settings
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <Settings />
+              </DialogContent>
+            </Dialog>
+            
+            <Button
+              onClick={resetGame}
+              variant="outline"
+              className="w-full game-button"
+              size="sm"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Reset Game
+            </Button>
+          </div>
         </Card>
       </motion.div>
     </div>

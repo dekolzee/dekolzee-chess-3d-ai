@@ -6,20 +6,29 @@ export interface ChessPiece {
   position: [number, number];
 }
 
-interface ChessStore {
+interface GameState {
   pieces: ChessPiece[];
-  theme: "light" | "dark";
   currentTurn: "white" | "black";
   moveHistory: string[];
   capturedPieces: ChessPiece[];
   gameStatus: "active" | "check" | "checkmate" | "stalemate";
   winner: "white" | "black" | null;
+}
+
+interface ChessStore extends GameState {
+  theme: "light" | "dark";
+  gameStateHistory: GameState[];
+  currentStateIndex: number;
   
   setTheme: (theme: "light" | "dark") => void;
   movePiece: (from: [number, number], to: [number, number]) => void;
   isValidMove: (from: [number, number], to: [number, number]) => boolean;
   resetGame: () => void;
   isKingInCheck: (color: "white" | "black", pieces?: ChessPiece[]) => boolean;
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
 }
 
 const initialPieces: ChessPiece[] = [
@@ -54,14 +63,20 @@ const initialPieces: ChessPiece[] = [
   })),
 ];
 
-export const useChessStore = create<ChessStore>((set, get) => ({
+const initialGameState: GameState = {
   pieces: initialPieces,
-  theme: "light",
   currentTurn: "white",
   moveHistory: [],
   capturedPieces: [],
   gameStatus: "active",
   winner: null,
+};
+
+export const useChessStore = create<ChessStore>((set, get) => ({
+  ...initialGameState,
+  theme: "light",
+  gameStateHistory: [initialGameState],
+  currentStateIndex: 0,
 
   setTheme: (theme) => set({ theme }),
 
@@ -179,24 +194,65 @@ export const useChessStore = create<ChessStore>((set, get) => ({
       }
     }
     
-    set({
+    const newGameState: GameState = {
       pieces: newPieces,
       capturedPieces,
       currentTurn: nextTurn,
       moveHistory: [...state.moveHistory, `${from[0]},${from[1]} → ${to[0]},${to[1]}`],
       gameStatus,
       winner,
+    };
+
+    // Update history for undo/redo
+    const newHistory = state.gameStateHistory.slice(0, state.currentStateIndex + 1);
+    newHistory.push(newGameState);
+
+    set({
+      ...newGameState,
+      gameStateHistory: newHistory,
+      currentStateIndex: newHistory.length - 1,
     });
   },
 
   resetGame: () => set({
-    pieces: initialPieces,
-    currentTurn: "white",
-    moveHistory: [],
-    capturedPieces: [],
-    gameStatus: "active",
-    winner: null,
+    ...initialGameState,
+    gameStateHistory: [initialGameState],
+    currentStateIndex: 0,
   }),
+
+  undo: () => {
+    const state = get();
+    if (state.currentStateIndex > 0) {
+      const newIndex = state.currentStateIndex - 1;
+      const previousState = state.gameStateHistory[newIndex];
+      set({
+        ...previousState,
+        currentStateIndex: newIndex,
+      });
+    }
+  },
+
+  redo: () => {
+    const state = get();
+    if (state.currentStateIndex < state.gameStateHistory.length - 1) {
+      const newIndex = state.currentStateIndex + 1;
+      const nextState = state.gameStateHistory[newIndex];
+      set({
+        ...nextState,
+        currentStateIndex: newIndex,
+      });
+    }
+  },
+
+  canUndo: () => {
+    const state = get();
+    return state.currentStateIndex > 0;
+  },
+
+  canRedo: () => {
+    const state = get();
+    return state.currentStateIndex < state.gameStateHistory.length - 1;
+  },
 }));
 
 // Helper function to check if path is blocked

@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       games: {
         Row: {
+          ai_difficulty: string | null
           black_player_id: string | null
           black_time_remaining: number | null
           created_at: string | null
@@ -31,6 +32,7 @@ export type Database = {
           winner: string | null
         }
         Insert: {
+          ai_difficulty?: string | null
           black_player_id?: string | null
           black_time_remaining?: number | null
           created_at?: string | null
@@ -46,6 +48,7 @@ export type Database = {
           winner?: string | null
         }
         Update: {
+          ai_difficulty?: string | null
           black_player_id?: string | null
           black_time_remaining?: number | null
           created_at?: string | null
@@ -81,38 +84,53 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string | null
+          draws: number | null
           elo_rating: number | null
           games_drawn: number | null
           games_lost: number | null
           games_played: number | null
           games_won: number | null
           id: string
+          losses: number | null
+          points: number | null
+          total_games: number | null
           updated_at: string | null
           username: string
+          wins: number | null
         }
         Insert: {
           avatar_url?: string | null
           created_at?: string | null
+          draws?: number | null
           elo_rating?: number | null
           games_drawn?: number | null
           games_lost?: number | null
           games_played?: number | null
           games_won?: number | null
           id: string
+          losses?: number | null
+          points?: number | null
+          total_games?: number | null
           updated_at?: string | null
           username: string
+          wins?: number | null
         }
         Update: {
           avatar_url?: string | null
           created_at?: string | null
+          draws?: number | null
           elo_rating?: number | null
           games_drawn?: number | null
           games_lost?: number | null
           games_played?: number | null
           games_won?: number | null
           id?: string
+          losses?: number | null
+          points?: number | null
+          total_games?: number | null
           updated_at?: string | null
           username?: string
+          wins?: number | null
         }
         Relationships: []
       }

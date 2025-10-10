@@ -4,8 +4,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
-import { ArrowLeft, Copy, Users, Bot, Sparkles } from "lucide-react";
+import { ArrowLeft, Copy, Users, Bot, Sparkles, Trophy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -18,6 +20,7 @@ const Lobby = () => {
   const [gameCode, setGameCode] = useState("");
   const [myGameCode, setMyGameCode] = useState("");
   const [loading, setLoading] = useState(false);
+  const [aiDifficulty, setAiDifficulty] = useState<"easy" | "medium" | "hard">("medium");
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -137,6 +140,7 @@ const Lobby = () => {
           white_player_id: user.id,
           status: "active",
           mode: "ai",
+          ai_difficulty: aiDifficulty,
           game_state: JSON.parse(JSON.stringify({
             pieces: initialState.pieces,
             currentTurn: "white",
@@ -153,7 +157,7 @@ const Lobby = () => {
 
       toast({
         title: "AI Game Started!",
-        description: "Good luck!",
+        description: `Difficulty: ${aiDifficulty}`,
       });
 
       navigate(`/game/${data.id}`);
@@ -193,14 +197,24 @@ const Lobby = () => {
           animate={{ opacity: 1, y: 0 }}
           className="mb-6"
         >
-          <Button
-            onClick={() => navigate("/")}
-            variant="ghost"
-            className="group hover:bg-card/40"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
-            Back to Menu
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              onClick={() => navigate("/")}
+              variant="ghost"
+              className="group hover:bg-card/40"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
+              Back to Menu
+            </Button>
+            <Button
+              onClick={() => navigate("/leaderboard")}
+              variant="ghost"
+              className="group hover:bg-card/40"
+            >
+              <Trophy className="mr-2 h-4 w-4" />
+              Leaderboard
+            </Button>
+          </div>
         </motion.div>
 
         <div className="max-w-2xl mx-auto space-y-6">
@@ -231,14 +245,31 @@ const Lobby = () => {
                   <p className="text-sm text-muted-foreground">Challenge the AI opponent</p>
                 </div>
               </div>
-              <Button
-                onClick={playWithAI}
-                disabled={loading}
-                className="w-full bg-gradient-to-r from-accent to-accent-glow hover:opacity-90"
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                Start AI Game
-              </Button>
+              
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>AI Difficulty</Label>
+                  <Select value={aiDifficulty} onValueChange={(value: any) => setAiDifficulty(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="easy">Easy - Beginner friendly</SelectItem>
+                      <SelectItem value="medium">Medium - Balanced challenge</SelectItem>
+                      <SelectItem value="hard">Hard - Advanced AI</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Button
+                  onClick={playWithAI}
+                  disabled={loading}
+                  className="w-full bg-gradient-to-r from-accent to-accent-glow hover:opacity-90"
+                >
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Start AI Game
+                </Button>
+              </div>
             </Card>
           </motion.div>
 

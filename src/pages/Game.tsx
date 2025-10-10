@@ -3,7 +3,7 @@ import { GameUI } from "@/components/chess/GameUI";
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Volume2, VolumeX, Music } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
 import { useChessStore } from "@/store/chessStore";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,9 +19,8 @@ const Game = () => {
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [selectedSquare, setSelectedSquare] = useState<[number, number] | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [musicEnabled, setMusicEnabled] = useState(false);
   const [gameMode, setGameMode] = useState<"multiplayer" | "ai">("multiplayer");
+  const [aiDifficulty, setAiDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [myColor, setMyColor] = useState<"white" | "black" | null>(null);
   const [isWaitingForAI, setIsWaitingForAI] = useState(false);
   const { pieces, isValidMove, movePiece, theme, currentTurn, gameStatus, resetGame } = useChessStore();
@@ -53,6 +52,10 @@ const Game = () => {
       }
 
       setGameMode((game.mode as "multiplayer" | "ai") || "multiplayer");
+      setAiDifficulty((game.ai_difficulty as "easy" | "medium" | "hard") || "medium");
+      
+      // Start background music
+      musicManager.play();
       
       // Determine player color
       if (game.white_player_id === user.id) {
@@ -138,7 +141,7 @@ const Game = () => {
           gameStatus: state.gameStatus,
           winner: state.winner,
         })),
-        status: state.gameStatus === "checkmate" || state.gameStatus === "stalemate" ? "finished" : "active",
+        status: state.gameStatus === "checkmate" || state.gameStatus === "stalemate" ? "completed" : "active",
         winner: state.winner,
       })
       .eq("id", gameId);
@@ -157,7 +160,8 @@ const Game = () => {
             pieces: state.pieces,
             currentTurn: state.currentTurn,
             moveHistory: state.moveHistory,
-          }
+          },
+          difficulty: aiDifficulty,
         }
       });
 
@@ -285,17 +289,6 @@ const Game = () => {
     }
   };
 
-  const toggleSound = () => {
-    const enabled = soundManager.toggle();
-    pieceSoundManager.toggle();
-    setSoundEnabled(enabled);
-  };
-
-  const toggleMusic = () => {
-    const enabled = musicManager.toggle();
-    setMusicEnabled(enabled);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 relative overflow-hidden">
       {/* Animated background elements */}
@@ -308,7 +301,7 @@ const Game = () => {
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6 flex items-center justify-between"
+          className="mb-6"
         >
           <Button
             onClick={() => navigate("/lobby")}
@@ -318,25 +311,6 @@ const Game = () => {
             <ArrowLeft className="mr-2 h-4 w-4 transition-transform group-hover:-translate-x-1" />
             Back to Lobby
           </Button>
-
-          <div className="flex gap-2">
-            <Button
-              onClick={toggleSound}
-              variant="outline"
-              size="icon"
-              className="hover:bg-card/40"
-            >
-              {soundEnabled ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
-            </Button>
-            <Button
-              onClick={toggleMusic}
-              variant="outline"
-              size="icon"
-              className="hover:bg-card/40"
-            >
-              <Music className={`h-4 w-4 ${musicEnabled ? 'text-accent' : ''}`} />
-            </Button>
-          </div>
         </motion.div>
 
         <div className="grid lg:grid-cols-[1fr_400px] gap-6">
