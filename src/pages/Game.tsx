@@ -23,6 +23,9 @@ const Game = () => {
   const [aiDifficulty, setAiDifficulty] = useState<"easy" | "medium" | "hard">("medium");
   const [myColor, setMyColor] = useState<"white" | "black" | null>(null);
   const [isWaitingForAI, setIsWaitingForAI] = useState(false);
+  const [whitePlayerUsername, setWhitePlayerUsername] = useState("");
+  const [blackPlayerUsername, setBlackPlayerUsername] = useState("");
+  const [aiHintsUsed, setAiHintsUsed] = useState(0);
   const { pieces, isValidMove, movePiece, theme, currentTurn, gameStatus, resetGame } = useChessStore();
 
   // Load game from database
@@ -63,6 +66,7 @@ const Game = () => {
 
       setGameMode((game.mode as "multiplayer" | "ai") || "multiplayer");
       setAiDifficulty((game.ai_difficulty as "easy" | "medium" | "hard") || "medium");
+      setAiHintsUsed(game.ai_hints_used || 0);
       
       // Start background music
       musicManager.play();
@@ -72,6 +76,26 @@ const Game = () => {
         setMyColor("white");
       } else if (game.black_player_id === user.id) {
         setMyColor("black");
+      }
+
+      // Load player usernames for multiplayer
+      if (game.mode === "multiplayer") {
+        if (game.white_player_id) {
+          const { data: whiteProfile } = await supabase
+            .from("profiles")
+            .select("username")
+            .eq("id", game.white_player_id)
+            .single();
+          if (whiteProfile) setWhitePlayerUsername(whiteProfile.username);
+        }
+        if (game.black_player_id) {
+          const { data: blackProfile } = await supabase
+            .from("profiles")
+            .select("username")
+            .eq("id", game.black_player_id)
+            .single();
+          if (blackProfile) setBlackPlayerUsername(blackProfile.username);
+        }
       }
 
       // Load game state if exists, otherwise reset to initial position
@@ -343,7 +367,14 @@ const Game = () => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <GameUI />
+            <GameUI 
+              gameId={gameId}
+              whitePlayerUsername={whitePlayerUsername}
+              blackPlayerUsername={blackPlayerUsername}
+              playerColor={myColor || undefined}
+              aiHintsUsed={aiHintsUsed}
+              isMultiplayer={gameMode === "multiplayer"}
+            />
           </motion.div>
         </div>
       </div>

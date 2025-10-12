@@ -1,19 +1,85 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, User, RotateCcw, Sun, Moon, Undo2, Redo2, Settings as SettingsIcon } from "lucide-react";
+import { Clock, User, RotateCcw, Sun, Moon, Undo2, Redo2, Settings as SettingsIcon, Lightbulb } from "lucide-react";
 import { motion } from "framer-motion";
 import { useChessStore } from "@/store/chessStore";
 import { Settings } from "@/components/game/Settings";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
-export const GameUI = () => {
-  const { currentTurn, moveHistory, capturedPieces, theme, setTheme, resetGame, gameStatus, winner, undo, redo, canUndo, canRedo } = useChessStore();
+interface GameUIProps {
+  gameId?: string;
+  whitePlayerUsername?: string;
+  blackPlayerUsername?: string;
+  playerColor?: "white" | "black";
+  aiHintsUsed?: number;
+  isMultiplayer?: boolean;
+}
 
-  // Ensure capturedPieces is always an array
+export const GameUI = ({ 
+  gameId, 
+  whitePlayerUsername, 
+  blackPlayerUsername, 
+  playerColor,
+  aiHintsUsed = 0,
+  isMultiplayer = false 
+}: GameUIProps) => {
+  const { currentTurn, moveHistory, capturedPieces, theme, setTheme, resetGame, gameStatus, winner, undo, redo, canUndo, canRedo, pieces } = useChessStore();
+  const [hints, setHints] = useState("");
+  const [loadingHints, setLoadingHints] = useState(false);
+  const [hintsDialogOpen, setHintsDialogOpen] = useState(false);
+  const [currentHintsUsed, setCurrentHintsUsed] = useState(aiHintsUsed);
+
   const capturedPiecesArray = Array.isArray(capturedPieces) ? capturedPieces : [];
   const whiteCaptured = capturedPiecesArray.filter(p => p.color === "white");
   const blackCaptured = capturedPiecesArray.filter(p => p.color === "black");
+
+  const handleGetHint = async () => {
+    if (currentHintsUsed >= 2) {
+      toast.error("You've used all your hints (2/2)");
+      return;
+    }
+
+    setLoadingHints(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('chess-hint-assistant', {
+        body: {
+          gameState: {
+            pieces,
+            currentTurn,
+            moveHistory
+          },
+          playerColor
+        }
+      });
+
+      if (error) throw error;
+
+      setHints(data.hints);
+      setHintsDialogOpen(true);
+
+      // Update hints used in database
+      if (gameId) {
+        const { error: updateError } = await supabase
+          .from('games')
+          .update({ ai_hints_used: currentHintsUsed + 1 })
+          .eq('id', gameId);
+
+        if (!updateError) {
+          setCurrentHintsUsed(prev => prev + 1);
+          toast.success(`Hint received! (${currentHintsUsed + 1}/2 used)`);
+        }
+      }
+    } catch (error) {
+      console.error('Error getting hint:', error);
+      toast.error('Failed to get hint');
+    } finally {
+      setLoadingHints(false);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -47,6 +113,28 @@ export const GameUI = () => {
           </div>
         </Card>
       </motion.div>
+
+      {/* Opponent Info - Only show in multiplayer */}
+      {isMultiplayer && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
+          <Card className="glass-panel p-4">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground">Playing as</p>
+              <p className="font-bold text-lg">
+                {playerColor === "white" ? "⚪ White" : "⚫ Black"}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">vs</p>
+              <p className="font-semibold">
+                {playerColor === "white" ? blackPlayerUsername : whitePlayerUsername}
+              </p>
+            </div>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Game Status */}
       <motion.div
@@ -240,6 +328,33 @@ export const GameUI = () => {
               <RotateCcw className="w-4 h-4 mr-2" />
               Reset Game
             </Button>
+
+            {/* AI Hint Assistant */}
+            {gameId && (
+              <Dialog open={hintsDialogOpen} onOpenChange={setHintsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button
+                    onClick={handleGetHint}
+                    variant="outline"
+                    className="w-full game-button"
+                    size="sm"
+                    disabled={currentHintsUsed >= 2 || loadingHints}
+                  >
+                    <Lightbulb className="w-4 h-4 mr-2" />
+                    AI Hint ({currentHintsUsed}/2)
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>AI Chess Assistant</DialogTitle>
+                    <DialogDescription>
+                      Here are some suggested moves for your position
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="whitespace-pre-wrap text-sm">{hints}</div>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </Card>
       </motion.div>

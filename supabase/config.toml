@@ -3,5 +3,8 @@ project_id = "thiqywtyibjrqwkoxair"
 [functions.chess-ai-move]
 verify_jwt = false
 
+[functions.chess-hint-assistant]
+verify_jwt = false
+
 [functions.send-password-reset]
 verify_jwt = false

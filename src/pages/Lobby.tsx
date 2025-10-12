@@ -71,9 +71,9 @@ const Lobby = () => {
         description: `Share code: ${code}`,
       });
 
-      // Navigate to game after short delay
+      // Navigate to waiting room
       setTimeout(() => {
-        navigate(`/game/${data.id}`);
+        navigate(`/waiting/${data.id}`);
       }, 1000);
     } catch (error: any) {
       toast({
@@ -108,12 +108,12 @@ const Lobby = () => {
         throw new Error("You cannot join your own game");
       }
 
-      // Join as black player and set game to active
+      // Join as black player and keep status as waiting
       const { error: updateError } = await supabase
         .from("games")
         .update({ 
           black_player_id: user.id,
-          status: "active"
+          status: "waiting"
         })
         .eq("id", game.id);
 
@@ -121,10 +121,10 @@ const Lobby = () => {
 
       toast({
         title: "Joined Game!",
-        description: "Starting match...",
+        description: "Waiting for both players to ready up...",
       });
 
-      navigate(`/game/${game.id}`);
+      navigate(`/waiting/${game.id}`);
     } catch (error: any) {
       toast({
         title: "Error",

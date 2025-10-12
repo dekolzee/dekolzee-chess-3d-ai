@@ -14,10 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      game_messages: {
+        Row: {
+          created_at: string | null
+          game_id: string | null
+          id: string
+          message: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          game_id?: string | null
+          id?: string
+          message: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          game_id?: string | null
+          id?: string
+          message?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "game_messages_game_id_fkey"
+            columns: ["game_id"]
+            isOneToOne: false
+            referencedRelation: "games"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "game_messages_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       games: {
         Row: {
           ai_difficulty: string | null
+          ai_hints_used: number | null
           black_player_id: string | null
+          black_player_ready: boolean | null
           black_time_remaining: number | null
           created_at: string | null
           game_code: string | null
@@ -28,12 +69,15 @@ export type Database = {
           time_control: number | null
           updated_at: string | null
           white_player_id: string | null
+          white_player_ready: boolean | null
           white_time_remaining: number | null
           winner: string | null
         }
         Insert: {
           ai_difficulty?: string | null
+          ai_hints_used?: number | null
           black_player_id?: string | null
+          black_player_ready?: boolean | null
           black_time_remaining?: number | null
           created_at?: string | null
           game_code?: string | null
@@ -44,12 +88,15 @@ export type Database = {
           time_control?: number | null
           updated_at?: string | null
           white_player_id?: string | null
+          white_player_ready?: boolean | null
           white_time_remaining?: number | null
           winner?: string | null
         }
         Update: {
           ai_difficulty?: string | null
+          ai_hints_used?: number | null
           black_player_id?: string | null
+          black_player_ready?: boolean | null
           black_time_remaining?: number | null
           created_at?: string | null
           game_code?: string | null
@@ -60,6 +107,7 @@ export type Database = {
           time_control?: number | null
           updated_at?: string | null
           white_player_id?: string | null
+          white_player_ready?: boolean | null
           white_time_remaining?: number | null
           winner?: string | null
         }
