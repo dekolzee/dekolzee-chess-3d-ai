@@ -51,6 +51,16 @@ const Game = () => {
         return;
       }
 
+      // For multiplayer, check if both players have joined
+      if (game.mode === "multiplayer" && game.status === "waiting") {
+        toast({
+          title: "Waiting for Opponent",
+          description: "The other player hasn't joined yet",
+        });
+        navigate("/lobby");
+        return;
+      }
+
       setGameMode((game.mode as "multiplayer" | "ai") || "multiplayer");
       setAiDifficulty((game.ai_difficulty as "easy" | "medium" | "hard") || "medium");
       

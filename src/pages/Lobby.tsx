@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useChessStore } from "@/store/chessStore";
+import { musicManager } from "@/utils/backgroundMusic";
 
 const Lobby = () => {
   const navigate = useNavigate();
@@ -25,6 +26,9 @@ const Lobby = () => {
   useEffect(() => {
     if (!authLoading && !user) {
       navigate("/auth");
+    } else if (user) {
+      // Start background music when user is in lobby
+      musicManager.play();
     }
   }, [user, authLoading, navigate]);
 
@@ -99,7 +103,12 @@ const Lobby = () => {
         throw new Error("Game not found or already started");
       }
 
-      // Join as black player
+      // Check if user is trying to join their own game
+      if (game.white_player_id === user.id) {
+        throw new Error("You cannot join your own game");
+      }
+
+      // Join as black player and set game to active
       const { error: updateError } = await supabase
         .from("games")
         .update({ 

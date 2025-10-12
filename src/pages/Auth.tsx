@@ -23,23 +23,43 @@ const Auth = () => {
 
     try {
       if (isForgotPassword) {
+        // Generate reset link
+        const resetLink = `${window.location.origin}/auth?reset=true`;
+        
+        // Send reset email via edge function
+        const { error: fnError } = await supabase.functions.invoke('send-password-reset', {
+          body: { 
+            email,
+            resetLink
+          }
+        });
+        
+        if (fnError) throw fnError;
+        
+        // Also trigger Supabase password reset
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/auth`,
         });
         if (error) throw error;
+        
         toast.success("Password reset email sent! Check your inbox.");
         setIsForgotPassword(false);
       } else if (isLogin) {
+        // Use username as unique identifier, convert to email format
+        const loginEmail = username.includes('@') ? username : `${username}@chessapp.com`;
+        
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: loginEmail,
           password,
         });
+        
         if (error) throw error;
         toast.success("Logged in successfully!");
         navigate("/lobby");
       } else {
+        const userEmail = `${username}@chessapp.com`;
         const { error } = await supabase.auth.signUp({
-          email,
+          email: userEmail,
           password,
           options: {
             data: { username },
@@ -77,7 +97,7 @@ const Auth = () => {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleAuth} className="space-y-4">
-              {!isLogin && !isForgotPassword && (
+              {!isForgotPassword && (
                 <div className="space-y-2">
                   <Label htmlFor="username">Username</Label>
                   <Input
@@ -85,22 +105,24 @@ const Auth = () => {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    required={!isLogin}
-                    placeholder="Choose a username"
+                    required
+                    placeholder={isLogin ? "Your username" : "Choose a username"}
                   />
                 </div>
               )}
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="your@email.com"
-                />
-              </div>
+              {isForgotPassword && (
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    placeholder="your@email.com"
+                  />
+                </div>
+              )}
               {!isForgotPassword && (
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
