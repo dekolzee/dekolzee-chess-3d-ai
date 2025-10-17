@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import Lobby from "./pages/Lobby";
 import Leaderboard from "./pages/Leaderboard";
 import WaitingRoom from "./pages/WaitingRoom";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
           <Route path="/lobby" element={<Lobby />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/waiting/:gameId" element={<WaitingRoom />} />
+          <Route path="/settings" element={<Settings />} />
           <Route path="/game/:gameId" element={<Game />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

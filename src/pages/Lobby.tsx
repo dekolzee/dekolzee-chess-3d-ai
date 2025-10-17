@@ -352,6 +352,22 @@ const Lobby = () => {
               </div>
             </Card>
           </motion.div>
+
+          {/* Settings Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="pt-4"
+          >
+            <Button
+              variant="outline"
+              onClick={() => navigate("/settings")}
+              className="w-full"
+            >
+              Settings
+            </Button>
+          </motion.div>
         </div>
       </div>
     </div>

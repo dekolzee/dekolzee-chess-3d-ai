@@ -1,13 +1,13 @@
 class MusicManager {
   private audio: HTMLAudioElement | null = null;
-  private enabled: boolean = false;
+  private enabled: boolean = true;
 
   constructor() {
     // Create placeholder background music
     // In production, replace with actual music file
     this.audio = new Audio("/sounds/move.mp3"); // Placeholder - use actual background music
     this.audio.loop = true;
-    this.audio.volume = 0.2;
+    this.audio.volume = 0.1;
   }
 
   play() {

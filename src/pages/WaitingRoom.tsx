@@ -20,6 +20,7 @@ export default function WaitingRoom() {
   const [isWhite, setIsWhite] = useState(false);
   const [copied, setCopied] = useState(false);
   const [myReady, setMyReady] = useState(false);
+  const [showCode, setShowCode] = useState(true);
 
   useEffect(() => {
     if (!user || !gameId) {
@@ -28,6 +29,11 @@ export default function WaitingRoom() {
     }
 
     loadGameData();
+
+    // Hide game code after 15 seconds if both players haven't joined
+    const timer = setTimeout(() => {
+      setShowCode(false);
+    }, 15000);
     
     const channel = supabase
       .channel(`waiting-room-${gameId}`)
@@ -43,6 +49,12 @@ export default function WaitingRoom() {
           const game = payload.new;
           setWhiteReady(game.white_player_ready);
           setBlackReady(game.black_player_ready);
+
+          // If second player joins, show code and reload profiles
+          if (game.black_player_id) {
+            setShowCode(true);
+            loadGameData();
+          }
           
           // Start game when both players are ready
           if (game.white_player_ready && game.black_player_ready && game.status === 'active') {
@@ -54,6 +66,7 @@ export default function WaitingRoom() {
       .subscribe();
 
     return () => {
+      clearTimeout(timer);
       supabase.removeChannel(channel);
     };
   }, [gameId, user, navigate]);
@@ -135,19 +148,30 @@ export default function WaitingRoom() {
             <h1 className="text-4xl font-bold mb-4 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
               Waiting Room
             </h1>
-            <div className="flex items-center justify-center gap-2 mb-2">
-              <span className="text-muted-foreground">Game Code:</span>
-              <code className="text-2xl font-mono font-bold text-primary">{gameCode}</code>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={copyGameCode}
-                className="ml-2"
+            {showCode && !blackPlayer && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
               >
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              </Button>
-            </div>
-            <p className="text-sm text-muted-foreground">Share this code with your opponent</p>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <span className="text-muted-foreground">Game Code:</span>
+                  <code className="text-2xl font-mono font-bold text-primary">{gameCode}</code>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={copyGameCode}
+                    className="ml-2"
+                  >
+                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground">Share this code with your opponent (15s)</p>
+              </motion.div>
+            )}
+            {whitePlayer && blackPlayer && (
+              <p className="text-lg text-primary font-semibold">Both players connected!</p>
+            )}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -222,7 +246,7 @@ export default function WaitingRoom() {
               className="w-full text-lg"
               variant={myReady ? "outline" : "default"}
             >
-              {myReady ? "✓ Ready - Click to Unready" : "Ready Up!"}
+              {myReady ? "✓ Ready - Click to Unready" : "Play"}
             </Button>
 
             {whiteReady && blackReady && (
