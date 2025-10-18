@@ -44,6 +44,31 @@ const Lobby = () => {
       const code = generateGameCode();
       const initialState = useChessStore.getState();
       
+      // Initialize with proper chess pieces
+      const initialPieces = [
+        // White pieces
+        { type: 'rook', color: 'white', position: [0, 0] },
+        { type: 'knight', color: 'white', position: [1, 0] },
+        { type: 'bishop', color: 'white', position: [2, 0] },
+        { type: 'queen', color: 'white', position: [3, 0] },
+        { type: 'king', color: 'white', position: [4, 0] },
+        { type: 'bishop', color: 'white', position: [5, 0] },
+        { type: 'knight', color: 'white', position: [6, 0] },
+        { type: 'rook', color: 'white', position: [7, 0] },
+        ...Array.from({ length: 8 }, (_, i) => ({ type: 'pawn', color: 'white', position: [i, 1] })),
+        
+        // Black pieces
+        { type: 'rook', color: 'black', position: [0, 7] },
+        { type: 'knight', color: 'black', position: [1, 7] },
+        { type: 'bishop', color: 'black', position: [2, 7] },
+        { type: 'queen', color: 'black', position: [3, 7] },
+        { type: 'king', color: 'black', position: [4, 7] },
+        { type: 'bishop', color: 'black', position: [5, 7] },
+        { type: 'knight', color: 'black', position: [6, 7] },
+        { type: 'rook', color: 'black', position: [7, 7] },
+        ...Array.from({ length: 8 }, (_, i) => ({ type: 'pawn', color: 'black', position: [i, 6] })),
+      ];
+      
       const { data, error } = await supabase
         .from("games")
         .insert([{
@@ -51,14 +76,14 @@ const Lobby = () => {
           game_code: code,
           status: "waiting",
           mode: "multiplayer",
-          game_state: JSON.parse(JSON.stringify({
-            pieces: initialState.pieces,
+          game_state: {
+            pieces: initialPieces,
             currentTurn: "white",
             moveHistory: [],
             capturedPieces: [],
             gameStatus: "active",
             winner: null,
-          }))
+          }
         }])
         .select()
         .single();
@@ -106,6 +131,11 @@ const Lobby = () => {
       // Check if user is trying to join their own game
       if (game.white_player_id === user.id) {
         throw new Error("You cannot join your own game");
+      }
+
+      // Check if game is full
+      if (game.black_player_id) {
+        throw new Error("Game is full");
       }
 
       // Join as black player and keep status as waiting

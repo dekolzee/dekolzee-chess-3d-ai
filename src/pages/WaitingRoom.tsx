@@ -29,11 +29,6 @@ export default function WaitingRoom() {
     }
 
     loadGameData();
-
-    // Hide game code after 15 seconds if both players haven't joined
-    const timer = setTimeout(() => {
-      setShowCode(false);
-    }, 15000);
     
     const channel = supabase
       .channel(`waiting-room-${gameId}`)
@@ -50,10 +45,15 @@ export default function WaitingRoom() {
           setWhiteReady(game.white_player_ready);
           setBlackReady(game.black_player_ready);
 
-          // If second player joins, show code and reload profiles
-          if (game.black_player_id) {
+          // When second player joins, keep code visible and reload profiles
+          if (game.black_player_id && !blackPlayer) {
             setShowCode(true);
             loadGameData();
+          }
+
+          // Hide code once both players are in
+          if (game.white_player_id && game.black_player_id) {
+            setShowCode(false);
           }
           
           // Start game when both players are ready
@@ -66,10 +66,9 @@ export default function WaitingRoom() {
       .subscribe();
 
     return () => {
-      clearTimeout(timer);
       supabase.removeChannel(channel);
     };
-  }, [gameId, user, navigate]);
+  }, [gameId, user, navigate, blackPlayer]);
 
   const loadGameData = async () => {
     const { data: game } = await supabase
@@ -166,7 +165,7 @@ export default function WaitingRoom() {
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
-                <p className="text-sm text-muted-foreground">Share this code with your opponent (15s)</p>
+                <p className="text-sm text-muted-foreground">Share this code with your opponent</p>
               </motion.div>
             )}
             {whitePlayer && blackPlayer && (

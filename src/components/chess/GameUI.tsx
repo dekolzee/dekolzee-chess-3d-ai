@@ -9,6 +9,8 @@ import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, Dialog
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { soundManager } from "@/utils/sounds";
+import { pieceSoundManager } from "@/utils/piecesSounds";
 
 interface GameUIProps {
   gameId?: string;

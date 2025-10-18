@@ -123,9 +123,9 @@ const Game = () => {
     loadGame();
   }, [gameId, user, authLoading, navigate]);
 
-  // Subscribe to realtime updates
+  // Subscribe to realtime updates for multiplayer
   useEffect(() => {
-    if (!gameId) return;
+    if (!gameId || gameMode !== "multiplayer") return;
 
     const channel = supabase
       .channel(`game-${gameId}`)
@@ -141,14 +141,26 @@ const Game = () => {
           const newGame = payload.new as any;
           if (newGame.game_state && newGame.game_state.pieces) {
             const state = newGame.game_state;
-            useChessStore.setState({
-              pieces: state.pieces,
-              currentTurn: state.currentTurn || "white",
-              moveHistory: state.moveHistory || [],
-              capturedPieces: Array.isArray(state.capturedPieces) ? state.capturedPieces : [],
-              gameStatus: state.gameStatus || "active",
-              winner: state.winner || null,
-            });
+            const previousState = useChessStore.getState();
+            
+            // Only update if it's not our move (to prevent double updates)
+            if (state.currentTurn === myColor) {
+              useChessStore.setState({
+                pieces: state.pieces,
+                currentTurn: state.currentTurn || "white",
+                moveHistory: state.moveHistory || [],
+                capturedPieces: Array.isArray(state.capturedPieces) ? state.capturedPieces : [],
+                gameStatus: state.gameStatus || "active",
+                winner: state.winner || null,
+              });
+
+              // Play sound for opponent's move
+              if (state.gameStatus === "check" || state.gameStatus === "checkmate") {
+                soundManager.playCheck();
+              } else {
+                soundManager.playMove();
+              }
+            }
           }
         }
       )
@@ -157,7 +169,7 @@ const Game = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [gameId]);
+  }, [gameId, gameMode, myColor]);
 
   // Save game state to database after each move
   const saveGameState = useCallback(async () => {
