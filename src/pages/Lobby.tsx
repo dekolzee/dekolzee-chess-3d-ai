@@ -112,31 +112,50 @@ const Lobby = () => {
   };
 
   const joinGame = async () => {
-    if (!user || !gameCode) return;
+    if (!user || !gameCode) {
+      toast({
+        title: "Error",
+        description: "Please enter a game code",
+        variant: "destructive",
+      });
+      return;
+    }
     
     setLoading(true);
     try {
-      // Find game with code
+      console.log(`Searching for game with code: ${gameCode.toUpperCase()}`);
+      
+      // Find game with code - use maybeSingle to handle no results gracefully
       const { data: game, error: findError } = await supabase
         .from("games")
         .select("*")
         .eq("game_code", gameCode.toUpperCase())
         .eq("status", "waiting")
-        .single();
+        .is("black_player_id", null)
+        .maybeSingle();
 
-      if (findError || !game) {
-        throw new Error("Game not found or already started");
+      console.log("Game search result:", { game, findError });
+
+      if (findError) {
+        console.error("Database error:", findError);
+        throw new Error(`Database error: ${findError.message}`);
+      }
+
+      if (!game) {
+        throw new Error("Game code not found. Please check the code and try again.");
       }
 
       // Check if user is trying to join their own game
       if (game.white_player_id === user.id) {
-        throw new Error("You cannot join your own game");
+        throw new Error("Cannot join your own game. Share this code with a friend!");
       }
 
-      // Check if game is full
+      // Double check game is available
       if (game.black_player_id) {
-        throw new Error("Game is full");
+        throw new Error("This game is already full");
       }
+
+      console.log("Joining game:", game.id);
 
       // Initialize proper game state with all pieces if not present
       const initialPieces = [
@@ -180,18 +199,26 @@ const Lobby = () => {
         })
         .eq("id", game.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error("Update error:", updateError);
+        throw new Error(`Failed to join game: ${updateError.message}`);
+      }
+
+      console.log("Successfully joined game!");
 
       toast({
         title: "Joined Game!",
-        description: "Waiting for both players to ready up...",
+        description: "Redirecting to waiting room...",
       });
 
-      navigate(`/waiting/${game.id}`);
+      setTimeout(() => {
+        navigate(`/waiting/${game.id}`);
+      }, 500);
     } catch (error: any) {
+      console.error("Join game error:", error);
       toast({
-        title: "Error",
-        description: error.message,
+        title: "Cannot Join Game",
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
       });
     } finally {
