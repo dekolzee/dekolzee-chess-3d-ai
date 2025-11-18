@@ -138,11 +138,44 @@ const Lobby = () => {
         throw new Error("Game is full");
       }
 
+      // Initialize proper game state with all pieces if not present
+      const initialPieces = [
+        // White pieces
+        { type: 'rook', color: 'white', position: [0, 0] },
+        { type: 'knight', color: 'white', position: [1, 0] },
+        { type: 'bishop', color: 'white', position: [2, 0] },
+        { type: 'queen', color: 'white', position: [3, 0] },
+        { type: 'king', color: 'white', position: [4, 0] },
+        { type: 'bishop', color: 'white', position: [5, 0] },
+        { type: 'knight', color: 'white', position: [6, 0] },
+        { type: 'rook', color: 'white', position: [7, 0] },
+        ...Array.from({ length: 8 }, (_, i) => ({ type: 'pawn', color: 'white', position: [i, 1] })),
+        // Black pieces
+        { type: 'rook', color: 'black', position: [0, 7] },
+        { type: 'knight', color: 'black', position: [1, 7] },
+        { type: 'bishop', color: 'black', position: [2, 7] },
+        { type: 'queen', color: 'black', position: [3, 7] },
+        { type: 'king', color: 'black', position: [4, 7] },
+        { type: 'bishop', color: 'black', position: [5, 7] },
+        { type: 'knight', color: 'black', position: [6, 7] },
+        { type: 'rook', color: 'black', position: [7, 7] },
+        ...Array.from({ length: 8 }, (_, i) => ({ type: 'pawn', color: 'black', position: [i, 6] })),
+      ];
+
+      const gameState = {
+        pieces: initialPieces,
+        currentTurn: "white",
+        moveHistory: [],
+        capturedPieces: { white: [], black: [] },
+        gameStatus: "active"
+      };
+
       // Join as black player and keep status as waiting
       const { error: updateError } = await supabase
         .from("games")
         .update({ 
           black_player_id: user.id,
+          game_state: gameState,
           status: "waiting"
         })
         .eq("id", game.id);
