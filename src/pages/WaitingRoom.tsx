@@ -29,6 +29,11 @@ export default function WaitingRoom() {
     }
 
     loadGameData();
+
+    // Set up timer to hide code after 15 seconds if second player hasn't joined
+    const codeTimer = setTimeout(() => {
+      setShowCode(false);
+    }, 15000);
     
     const channel = supabase
       .channel(`waiting-room-${gameId}`)
@@ -48,12 +53,13 @@ export default function WaitingRoom() {
           // When second player joins, keep code visible and reload profiles
           if (game.black_player_id && !blackPlayer) {
             setShowCode(true);
+            clearTimeout(codeTimer); // Cancel the hide timer
             loadGameData();
           }
 
           // Hide code once both players are in
           if (game.white_player_id && game.black_player_id) {
-            setShowCode(false);
+            setTimeout(() => setShowCode(false), 2000);
           }
           
           // Start game when both players are ready
@@ -66,6 +72,7 @@ export default function WaitingRoom() {
       .subscribe();
 
     return () => {
+      clearTimeout(codeTimer);
       supabase.removeChannel(channel);
     };
   }, [gameId, user, navigate, blackPlayer]);

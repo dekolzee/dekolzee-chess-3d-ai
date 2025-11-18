@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { Eye, EyeOff } from "lucide-react";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -16,6 +17,7 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,20 +47,37 @@ const Auth = () => {
         toast.success("Password reset email sent! Check your inbox.");
         setIsForgotPassword(false);
       } else if (isLogin) {
-        // Use username as unique identifier, convert to email format
         const loginEmail = username.includes('@') ? username : `${username}@chessapp.com`;
         
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email: loginEmail,
           password,
         });
         
         if (error) throw error;
+        
+        // Verify profile exists
+        if (data.user) {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('id', data.user.id)
+            .single();
+            
+          if (profileError && profileError.code === 'PGRST116') {
+            // Profile doesn't exist, create it
+            await supabase.from('profiles').insert({
+              id: data.user.id,
+              username: username,
+            });
+          }
+        }
+        
         toast.success("Logged in successfully!");
         navigate("/lobby");
       } else {
         const userEmail = `${username}@chessapp.com`;
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email: userEmail,
           password,
           options: {
@@ -66,9 +85,14 @@ const Auth = () => {
             emailRedirectTo: `${window.location.origin}/`,
           },
         });
+        
         if (error) throw error;
-        toast.success("Account created! You can now log in.");
-        setIsLogin(true);
+        
+        if (data.user) {
+          toast.success("Account created! Logging you in...");
+          // Auto login after signup
+          navigate("/lobby");
+        }
       }
     } catch (error: any) {
       toast.error(error.message);
@@ -126,15 +150,25 @@ const Auth = () => {
               {!isForgotPassword && (
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    placeholder="••••••••"
-                    minLength={6}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      placeholder="••••••••"
+                      minLength={6}
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                    </button>
+                  </div>
                 </div>
               )}
               <Button type="submit" className="w-full game-button" disabled={loading}>

@@ -40,9 +40,9 @@ export const Board2D = ({ pieces, selectedSquare, validMoves, onSquareClick, the
   };
 
   return (
-    <div className="glass-panel rounded-2xl p-6 max-w-2xl mx-auto">
-      <div className="aspect-square bg-[#302e2b] p-2 rounded-lg shadow-2xl">
-        <div className="grid grid-cols-8 gap-0 h-full w-full">
+    <div className="glass-panel rounded-2xl p-6 w-full max-w-2xl mx-auto">
+      <div className="w-full aspect-square bg-[#302e2b] p-2 rounded-lg shadow-2xl">
+        <div className="grid grid-cols-8 grid-rows-8 gap-0 w-full h-full">
           {ranks.map((rank, y) =>
             files.map((file, x) => {
               const piece = getPieceAtSquare(x, y);
