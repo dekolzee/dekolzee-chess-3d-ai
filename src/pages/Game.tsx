@@ -38,16 +38,42 @@ const Game = () => {
     if (!gameId || !user) return;
 
     const loadGame = async () => {
+      console.log("Loading game with ID:", gameId);
+      
       const { data: game, error } = await supabase
         .from("games")
         .select("*")
         .eq("id", gameId)
-        .single();
+        .maybeSingle();
 
-      if (error || !game) {
+      console.log("Game load result:", { game, error });
+
+      if (error) {
+        console.error("Database error:", error);
         toast({
-          title: "Error",
-          description: "Game not found",
+          title: "Database Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        navigate("/lobby");
+        return;
+      }
+
+      if (!game) {
+        toast({
+          title: "Game Not Found",
+          description: "This game doesn't exist or you don't have access to it",
+          variant: "destructive",
+        });
+        navigate("/lobby");
+        return;
+      }
+
+      // Check if user has access to this game
+      if (game.white_player_id !== user.id && game.black_player_id !== user.id) {
+        toast({
+          title: "Access Denied",
+          description: "You are not a player in this game",
           variant: "destructive",
         });
         navigate("/lobby");
