@@ -1,6 +1,6 @@
 import { Board2D } from "@/components/chess/Board2D";
 import { GameUI } from "@/components/chess/GameUI";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
@@ -27,6 +27,8 @@ const Game = () => {
   const [blackPlayerUsername, setBlackPlayerUsername] = useState("");
   const [aiHintsUsed, setAiHintsUsed] = useState(0);
   const { pieces, isValidMove, movePiece, theme, currentTurn, gameStatus, resetGame } = useChessStore();
+  const gameLoadedRef = useRef(false);
+  const loadingRef = useRef(false);
 
   // Load game from database
   useEffect(() => {
@@ -35,7 +37,9 @@ const Game = () => {
       return;
     }
 
-    if (!gameId || !user) return;
+    if (!gameId || !user || gameLoadedRef.current || loadingRef.current) return;
+    
+    loadingRef.current = true;
 
     const loadGame = async () => {
       console.log("Loading game with ID:", gameId);
@@ -144,10 +148,13 @@ const Game = () => {
         // Initialize new game with starting position
         useChessStore.getState().resetGame();
       }
+      
+      gameLoadedRef.current = true;
+      loadingRef.current = false;
     };
 
     loadGame();
-  }, [gameId, user, authLoading, navigate]);
+  }, [gameId, user, authLoading]);
 
   // Subscribe to realtime updates for multiplayer
   useEffect(() => {
